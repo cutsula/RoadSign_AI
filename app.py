@@ -136,7 +136,7 @@ if jenis_input == "Upload Gambar":
         if st.button("Mulai Deteksi Model 🔍"):
             tampilkan_hasil_dua_model(img_array)
 
-elif jenis_input == "Kamera (HP/Laptop)":
+elif jenis_input == "Kamera":
     st.info(
         "📱 Tekan tombol di bawah untuk mengaktifkan kamera. "
     )
