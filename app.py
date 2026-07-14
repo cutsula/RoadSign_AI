@@ -4,6 +4,8 @@ import cv2
 from PIL import Image
 import numpy as np
 import time
+import av
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase, RTCConfiguration
 
 # --- KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="RoadSign AI", layout="wide")
@@ -31,7 +33,7 @@ nama_model = [
 st.subheader("Pengaturan Input")
 jenis_input = st.radio(
     "Pilih jenis input:",
-    ["Upload Gambar", "Kamera"],
+    ["Upload Gambar", "Kamera (Foto)", "Kamera (Real-time)"],
     horizontal=True
 )
 
@@ -136,9 +138,10 @@ if jenis_input == "Upload Gambar":
         if st.button("Mulai Deteksi Model 🔍"):
             tampilkan_hasil_dua_model(img_array)
 
-elif jenis_input == "Kamera":
+elif jenis_input == "Kamera (Foto)":
     st.info(
         "📱 Tekan tombol di bawah untuk mengaktifkan kamera. "
+        "Di HP, ini akan membuka kamera bawaan browser (bisa pilih kamera depan/belakang)."
     )
 
     foto = st.camera_input("Ambil foto rambu lalu lintas")
@@ -151,4 +154,54 @@ elif jenis_input == "Kamera":
         st.subheader("Hasil Deteksi")
         tampilkan_hasil_dua_model(img_array)
 
-       
+        st.caption(
+            "Tips: ambil ulang foto (tombol kamera di atas) untuk deteksi baru — "
+            "st.camera_input akan otomatis refresh hasil setiap foto baru diambil."
+        )
+
+elif jenis_input == "Kamera (Real-time)":
+    st.info(
+        "🎥 Mode real-time memproses video langsung dari kamera. "
+        "Karena keterbatasan CPU di server, hanya 1 model yang dijalankan "
+        "sekaligus supaya video tetap lancar."
+    )
+
+    pilihan_model_rt = st.selectbox("Pilih model untuk real-time:", nama_model)
+    idx_model_rt = nama_model.index(pilihan_model_rt)
+
+    # Simpan referensi model & confidence terkini di session_state supaya bisa
+    # diakses dari dalam VideoProcessor (berjalan di thread terpisah) tanpa
+    # perlu rebuild processor tiap kali pilihan berubah.
+    st.session_state["_rt_model_idx"] = idx_model_rt
+    st.session_state["_rt_conf"] = conf_threshold
+
+    class YOLOVideoProcessor(VideoProcessorBase):
+        def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
+            img_bgr = frame.to_ndarray(format="bgr24")
+
+            model_idx = st.session_state.get("_rt_model_idx", 0)
+            conf = st.session_state.get("_rt_conf", 0.25)
+            model = daftar_model[model_idx]
+
+            res = model.predict(source=img_bgr, imgsz=640, conf=conf, verbose=False)
+            annotated_bgr = res[0].plot()
+
+            return av.VideoFrame.from_ndarray(annotated_bgr, format="bgr24")
+
+    rtc_configuration = RTCConfiguration(
+        {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+    )
+
+    webrtc_streamer(
+        key="realtime-yolo",
+        video_processor_factory=YOLOVideoProcessor,
+        rtc_configuration=rtc_configuration,
+        media_stream_constraints={"video": True, "audio": False},
+        async_processing=True,
+    )
+
+    st.caption(
+        "Catatan: kalau video gagal muncul (terutama di jaringan seluler/HP), "
+        "biasanya karena koneksi P2P WebRTC diblokir NAT/firewall dan butuh "
+        "TURN server tambahan — beri tahu saya kalau ini terjadi."
+    )
