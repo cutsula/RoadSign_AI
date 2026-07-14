@@ -141,7 +141,6 @@ if jenis_input == "Upload Gambar":
 elif jenis_input == "Ambil Gambar":
     st.info(
         "📱 Tekan tombol di bawah untuk mengaktifkan kamera. "
-        "Di HP, ini akan membuka kamera bawaan browser (bisa pilih kamera depan/belakang)."
     )
 
     foto = st.camera_input("Ambil foto rambu lalu lintas")
@@ -154,16 +153,10 @@ elif jenis_input == "Ambil Gambar":
         st.subheader("Hasil Deteksi")
         tampilkan_hasil_dua_model(img_array)
 
-        st.caption(
-            "Tips: ambil ulang foto (tombol kamera di atas) untuk deteksi baru — "
-            "st.camera_input akan otomatis refresh hasil setiap foto baru diambil."
-        )
 
 elif jenis_input == "Real-time":
     st.info(
         "🎥 Mode real-time memproses video langsung dari kamera. "
-        "Karena keterbatasan CPU di server, hanya 1 model yang dijalankan "
-        "sekaligus supaya video tetap lancar."
     )
 
     pilihan_model_rt = st.selectbox("Pilih model untuk real-time:", nama_model)
