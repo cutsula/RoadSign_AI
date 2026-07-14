@@ -4,3 +4,5 @@ opencv-python-headless==4.10.0.84
 pillow
 numpy
 matplotlib
+streamlit-webrtc==0.63.11
+av
