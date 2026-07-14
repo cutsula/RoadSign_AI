@@ -33,7 +33,7 @@ nama_model = [
 st.subheader("Pengaturan Input")
 jenis_input = st.radio(
     "Pilih jenis input:",
-    ["Upload Gambar", "Kamera (Foto)", "Kamera (Real-time)"],
+    ["Upload Gambar", "Ambil Gambar", "Real-time"],
     horizontal=True
 )
 
@@ -138,7 +138,7 @@ if jenis_input == "Upload Gambar":
         if st.button("Mulai Deteksi Model 🔍"):
             tampilkan_hasil_dua_model(img_array)
 
-elif jenis_input == "Kamera (Foto)":
+elif jenis_input == "Ambil Gambar":
     st.info(
         "📱 Tekan tombol di bawah untuk mengaktifkan kamera. "
         "Di HP, ini akan membuka kamera bawaan browser (bisa pilih kamera depan/belakang)."
@@ -159,7 +159,7 @@ elif jenis_input == "Kamera (Foto)":
             "st.camera_input akan otomatis refresh hasil setiap foto baru diambil."
         )
 
-elif jenis_input == "Kamera (Real-time)":
+elif jenis_input == "Real-time":
     st.info(
         "🎥 Mode real-time memproses video langsung dari kamera. "
         "Karena keterbatasan CPU di server, hanya 1 model yang dijalankan "
@@ -168,6 +168,14 @@ elif jenis_input == "Kamera (Real-time)":
 
     pilihan_model_rt = st.selectbox("Pilih model untuk real-time:", nama_model)
     idx_model_rt = nama_model.index(pilihan_model_rt)
+
+    arah_kamera = st.radio(
+        "Pilih kamera:",
+        ["Belakang", "Depan"],
+        horizontal=True,
+        help="Kamera belakang biasanya lebih cocok untuk memotret rambu di jalan.",
+    )
+    facing_mode = "environment" if arah_kamera == "Belakang" else "user"
 
     # Simpan referensi model & confidence terkini di session_state supaya bisa
     # diakses dari dalam VideoProcessor (berjalan di thread terpisah) tanpa
@@ -192,16 +200,15 @@ elif jenis_input == "Kamera (Real-time)":
         {"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
     )
 
+    # key harus ikut berubah sesuai facing_mode, supaya widget di-restart
+    # dengan constraint kamera yang baru saat user ganti Depan/Belakang.
     webrtc_streamer(
-        key="realtime-yolo",
+        key=f"realtime-yolo-{facing_mode}",
         video_processor_factory=YOLOVideoProcessor,
         rtc_configuration=rtc_configuration,
-        media_stream_constraints={"video": True, "audio": False},
+        media_stream_constraints={
+            "video": {"facingMode": {"ideal": facing_mode}},
+            "audio": False,
+        },
         async_processing=True,
-    )
-
-    st.caption(
-        "Catatan: kalau video gagal muncul (terutama di jaringan seluler/HP), "
-        "biasanya karena koneksi P2P WebRTC diblokir NAT/firewall dan butuh "
-        "TURN server tambahan — beri tahu saya kalau ini terjadi."
     )
